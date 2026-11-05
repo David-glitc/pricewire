@@ -3,7 +3,7 @@
 Estimated gas (Foundry; ~22 gwei assumed from wave 3's "5M gas ~ 0.11 BOT"):
 | Action | Gas | ~BOT |
 |---|---|---|
-| Deploy PriceWire | ~1.1M | 0.025 |
+| Deploy PriceWire | ~1.4M (6.8 kB runtime) | 0.031 |
 | `consultBest` / `consult` / `healthAll` | view calls - free off-chain; ~150k when called inside a transaction | 0.003 |
 
 Steps
