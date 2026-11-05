@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PriceWire · TWAP oracle for BDEX V3</title>
+<meta name="description" content="A stateless TWAP price oracle adapter for BDEX V3 on BOT Chain, with a Go health service. It picks the deepest healthy pool and refuses to answer otherwise. MVP, not yet deployed.">
+<meta property="og:title" content="PriceWire · TWAP oracle for BDEX V3"><meta property="og:description" content="BOT Chain has no price feeds. PriceWire wraps BDEX V3 pool history with the health checks that make it safe to read. MVP, mainnet deploy soon."><meta property="og:type" content="website"><meta property="og:url" content="https://pricewirebot.vercel.app/">
+<meta name="twitter:card" content="summary"><meta name="theme-color" content="#F2EEE3">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2EEE3;--panel:#FBF9F2;--ink:#1C1B18;--mute:#6B675C;--acc:#C2410C;--ok:#2F6B3A;--line:#1C1B18}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 'IBM Plex Sans',system-ui,sans-serif;background-image:linear-gradient(#0000000d 1px,transparent 1px);background-size:100% 28px}
+h1,h2{font-family:'Space Grotesk',sans-serif;margin:0;line-height:1.05}
+code,pre,.mono{font-family:'IBM Plex Mono',monospace}
+a{color:var(--acc)}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0;border-bottom:2px solid var(--line)}
+nav b{font:700 22px 'Space Grotesk';display:flex;gap:8px;align-items:center}nav img{width:26px}
+nav a{margin-left:18px;color:var(--ink);font-size:14px;text-decoration:none;font-family:'IBM Plex Mono'}
+.tag{display:inline-block;font:500 12px 'IBM Plex Mono';border:2px solid var(--line);padding:4px 10px;background:#FFE9A8;box-shadow:3px 3px 0 var(--line)}
+.hero{padding:56px 0 44px}
+.hero h1{font-size:clamp(38px,7vw,70px);margin:20px 0;letter-spacing:-.03em}
+.hero h1 span{background:var(--acc);color:#fff;padding:0 .15em}
+.hero p{max-width:640px;font-size:19px;color:#3d3a32}
+section{padding:42px 0;border-top:2px solid var(--line)}
+h2{font-size:clamp(26px,4vw,38px);margin-bottom:12px}
+.panel{background:var(--panel);border:2px solid var(--line);box-shadow:5px 5px 0 var(--line);padding:22px;margin:18px 0}
+.bars{display:grid;gap:14px;font-family:'IBM Plex Mono';font-size:14px}
+.row{display:grid;grid-template-columns:90px 1fr;gap:12px;align-items:center}
+.bar{min-height:30px;padding-top:4px;padding-bottom:4px;background:#2f6b3a;color:#fff;display:flex;align-items:center;padding-left:10px;white-space:normal}
+.bar.hi{background:var(--acc)}.bar.none{background:repeating-linear-gradient(45deg,#d9d3c0,#d9d3c0 6px,#ece7d7 6px,#ece7d7 12px);color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td,th{border-bottom:1px solid #1c1b1840;padding:9px 8px;text-align:left;vertical-align:top}
+th{font:500 12px 'IBM Plex Mono';text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+pre{background:#1C1B18;color:#F2EEE3;padding:16px;overflow-x:auto;font-size:13px;margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.flag{font:500 13px 'IBM Plex Mono';background:#1c1b1811;padding:2px 6px}
+.warn{border-left:6px solid var(--acc);padding:10px 16px;background:#fde3d3}
+footer{border-top:2px solid var(--line);padding:30px 0 60px;color:var(--mute);font-size:14px}
+@media(max-width:560px){body{overflow-x:hidden}.hero h1{font-size:34px}nav a{display:none}.row{grid-template-columns:70px 1fr}.tw{overflow-x:auto}}
+</style></head><body><div class="wrap">
+<nav><b><img src="favicon.svg" alt="">PriceWire</b><div><a href="#finding">finding</a><a href="#contract">contract</a><a href="#service">service</a><a href="#risks">risks</a></div></nav>
+<header class="hero"><span class="tag">MVP · fork-tested · not yet deployed · mainnet deploy soon</span>
+<h1>A price feed you can <span>trust</span> to say no.</h1>
+<p>BOT Chain has no Chainlink-style feeds. PriceWire reads the observation history inside BDEX V3 pools, applies health checks, and picks the deepest healthy tier, or refuses to answer.</p></header>
+
+<section id="finding"><h2>The finding that shaped it</h2>
+<p>A live survey of WBOT/USDT on BOT Chain mainnet (5 Nov 2026):</p>
+<div class="panel"><div class="bars" role="img" aria-label="WBOT/USDT pool tiers: 0.05 percent pool prices about 27 percent above the 0.3 percent pool">
+<div class="row"><span>0.01%</span><div class="bar none">no pool</div></div>
+<div class="row"><span>0.05%</span><div class="bar hi" style="width:100%">~27% above · liquidity 3.2e9</div></div>
+<div class="row"><span>0.3%</span><div class="bar" style="width:79%">1 WBOT = 12.47 USDT · liquidity 2e19 · 1024-slot history</div></div>
+<div class="row"><span>1%</span><div class="bar none">no liquidity · flagged</div></div></div></div>
+<p>The 0.05% pool prices WBOT about 27% above the deep 0.3% pool. A naive "read the first pool" integration would have quoted the wrong price. PriceWire prefers the deepest <em>healthy</em> tier and reverts <code>NoHealthyPool</code> if there is none. (Bars are indicative, not to scale.)</p></section>
+
+<section id="contract"><h2>The contract</h2>
+<p><code>src/PriceWire.sol</code>: stateless, no owner, no tokens, no admin. Immutable factory address.</p>
+<div class="panel tw"><table>
+<tr><th>Function</th><th>What it does</th></tr>
+<tr><td class="mono">consult(...)</td><td>TWAP quote from one fee tier; reverts <code>Unhealthy(flags)</code>.</td></tr>
+<tr><td class="mono">consultBest(...)</td><td>Quote from the deepest healthy tier of four; reverts <code>NoHealthyPool</code>.</td></tr>
+<tr><td class="mono">health / healthAll</td><td>Never revert; return flags and numbers for diagnostics.</td></tr></table></div>
+<p>Health flags:
+<span class="flag">NO_POOL</span> <span class="flag">LOW_LIQUIDITY</span> <span class="flag">SHORT_HISTORY</span> <span class="flag">SPOT_DEVIATION</span> <span class="flag">LOCKED</span></p>
+<p>Spot deviation means the spot tick is more than 200 ticks (about 2%) from the TWAP tick. The window is at least 60 seconds; use 30 minutes or more when money depends on it.</p></section>
+
+<section id="service"><h2>The Go service</h2>
+<p>Stdlib only. Reads the oracle with plain <code>eth_call</code>: no keys, no state changes. JSON with CORS and a 5-second cache.</p>
+<div class="panel"><pre>GET /healthz
+GET /v1/pairs
+GET /v1/price?pair=WBOT-USDT&amp;window=1800
+GET /v1/health?pair=WBOT-USDT</pre></div>
+<p><code>/v1/price</code> returns <code>503</code> with per-tier reasons when no tier is healthy, and <code>502</code> when the RPC itself fails, so an outage is never reported as "no healthy pool". <code>/v1/health</code> reports <code>ok</code>, <code>degraded</code> or <code>down</code> and warns when tiers disagree by more than 5%.</p></section>
+
+<section id="risks"><h2>Risks and handling</h2>
+<div class="grid">
+<div class="panel"><b>Flash-loan push</b><br>TWAP over a window, plus a spot-vs-TWAP deviation flag.</div>
+<div class="panel"><b>Thin pools</b><br><code>minLiquidity</code> is the caller's choice; <code>consultBest</code> prefers the deepest tier.</div>
+<div class="panel"><b>Young pools</b><br><code>SHORT_HISTORY</code> when history is shorter than the window.</div>
+<div class="panel"><b>Residual risk</b><br>No on-chain cross-check between tiers (gas); the service warns instead.</div></div>
+<p class="warn"><b>Status.</b> The contract and service are tested (9 unit/fuzz tests, 4 against live BDEX pools read-only, 10 Go tests), but PriceWire is <b>not deployed</b>. There is no address and no public API yet. Mainnet deploy soon. It is intended for projects like <a href="https://dripbuybot.vercel.app/">Dripbuy</a>.</p></section>
+<footer>PriceWire is an MVP for BOT Chain. This page is documentation only and connects to no wallet.</footer></div></body></html>
